@@ -1,0 +1,112 @@
+- name: set versions
+  set_fact:
+    python_version: 3.4.3
+    numpy_version: 1.8.2
+    scipy_version: 0.13.3
+
+- name: install prerequisites
+  yum:
+    name:
+      - gcc
+      - gcc-c++
+      - zlib-devel
+      - bzip2
+      - bzip2-devel
+      - readline
+      - readline-devel
+      - sqlite
+      - sqlite-devel
+      - openssl
+      - openssl-devel
+      - tk-devel
+      - libffi-devel
+      - git
+      - blas-devel
+      - lapack-devel
+  become: True
+  when: ansible_os_family == "RedHat"
+
+- block:
+  - name: apt-get update
+    apt:
+      update_cache: yes
+
+  - name: install prerequisites
+    apt:
+      name:
+        - make
+        - build-essential
+        - libssl-dev
+        - zlib1g-dev
+        - libbz2-dev
+        - libreadline-dev
+        - libsqlite3-dev
+        - wget
+        - curl
+        - llvm
+        - libncurses5-dev
+        - xz-utils
+        - tk-dev
+        - libxml2-dev
+        - libxmlsec1-dev
+        - libffi-dev
+        - liblzma-dev
+        - libblas-dev
+        - liblapack-dev
+        - gfortran
+
+  - name: install old libssl
+    apt:
+      name: libssl1.0-dev
+  become: True
+  when: ansible_os_family == "Debian"
+
+- name: clone pyenv
+  git:
+    repo: https://github.com/pyenv/pyenv.git
+    dest: ~/.pyenv
+    update: False
+
+- name: add lines for bash_profile
+  lineinfile:
+    dest: ~/.bash_profile
+    create: True
+    line: '{{ item }}'
+  with_items:
+    - 'export PATH="$HOME/.pyenv/bin:$PATH"'
+    - 'eval "$(pyenv init -)"'
+
+- name: check if python {{ python_version }} is installed
+  stat:
+    path: '~/.pyenv/versions/{{ python_version }}'
+  register: isinstalled
+
+- name: install python
+  shell: '~/.pyenv/bin/pyenv install {{ python_version }}'
+  when: not isinstalled.stat.exists
+
+- name: check if python {{ python_version }} is global
+  shell: '~/.pyenv/bin/pyenv global | grep {{ python_version }}'
+  register: isglobal
+  ignore_errors: True
+  check_mode: False
+  changed_when: False
+
+- name: set global
+  shell: '~/.pyenv/bin/pyenv global {{ python_version }}'
+  when: isglobal.rc != 0
+
+- name: check library
+  shell: '~/.pyenv/shims/pip list'
+  register: libraries
+  ignore_errors: True
+  check_mode: False
+  changed_when: False
+  
+- name: install numpy
+  shell: '~/.pyenv/shims/pip install numpy=={{ numpy_version }}'
+  when: '"numpy" not in libraries.stdout'
+
+- name: install scipy
+  shell: '~/.pyenv/shims/pip install scipy=={{ scipy_version }}'
+  when: '"scipy" not in libraries.stdout'
