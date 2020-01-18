@@ -96,17 +96,24 @@
   shell: '~/.pyenv/bin/pyenv global {{ python_version }}'
   when: isglobal.rc != 0
 
-- name: check library
-  shell: '~/.pyenv/shims/pip list'
-  register: libraries
+- name: check pip version
+  shell: ~/.pyenv/shims/pip --version | grep 6.0.8
+  changed_when: False
+  register: pip_old
   ignore_errors: True
   check_mode: False
-  changed_when: False
   
-- name: install numpy
-  shell: '~/.pyenv/shims/pip install numpy=={{ numpy_version }}'
-  when: '"numpy" not in libraries.stdout'
+- name: pip upgrade
+  shell: ~/.pyenv/shims/pip install --upgrade pip
+  when: pip_old.rc == 0
 
-- name: install scipy
-  shell: '~/.pyenv/shims/pip install scipy=={{ scipy_version }}'
-  when: '"scipy" not in libraries.stdout'
+- name: copy requirements.txt
+  template:
+    src: requirements.txt
+    dest: ~/requirements.txt
+  register: req
+
+- name: install libraries
+  shell: ~/.pyenv/shims/pip install -r ~/requirements.txt
+  when: req is changed
+
