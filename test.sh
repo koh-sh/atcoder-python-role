@@ -2,12 +2,12 @@
 
 set -eu
 
-contest=$1
-task=$2
+pythonfile=$1
+pythonpath=$(dirname "$pythonfile")
 
-samples=$(find "$contest"/"$task" -name in\* | wc -l)
+samples=$(find "$pythonpath" -name in\* | wc -l)
 
-cd "$contest"/"$task"
+cd "$pythonpath"
 
 for i in $(seq 1 "$samples")
 do
